@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 
 const registrationSchema = new mongoose.Schema({
+    membershipType: {type: String},
+    dependantParents: {type: Number},
+    dependantChildren: {type: Number},
         title: {type: String},
         firstName: {type: String},
         lastName: {type: String},
@@ -30,6 +33,9 @@ const registrationSchema = new mongoose.Schema({
         poaWorkNumber: {type: String},
         poaPhoneNumber: {type: String},
         poaEmail: {type: String},
+        joiningFee: {type: Number},
+        annualFee: {type: Number},
+        total: {type: Number},
     }, { 
         timestamps: true,
     });
