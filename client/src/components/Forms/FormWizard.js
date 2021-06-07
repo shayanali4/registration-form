@@ -28,7 +28,7 @@ import Breadcrumbs from "../common/Breadcrumb";
 import SweetAlert from "react-bootstrap-sweetalert"
 import axios from "axios";
 import { serverAddress } from "../../constants";
-import Paypal from "../PaymentMethods/Paypal";
+import Paypal from "../PaymentMethods/Paypal"; 
 
 const FormWizard = () => {
   const [activeTab, setactiveTab] = useState(1)
