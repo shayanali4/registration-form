@@ -30,7 +30,7 @@ emailRouter.post('/', expressAsyncHandler(async (req, res) => {
     from: 'noreplywebnapp@gmail.com',
     to: req.body.receiver,
     subject: req.body.subject,
-    text: req.body.message,
+    html: req.body.message,
     // attachments:
     //   [
     //     {   // utf-8 string as an attachment

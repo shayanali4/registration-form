@@ -14,10 +14,45 @@ function AppContext({children}) {
 
     const [registration, setRegistration] = useState(null);
 
+    const [registrationVariables, setRegistrationVariables]= useState({
+        membershipType : 'Individual',
+        dependantParents : 0, 
+        dependantChildren : 0, 
+        title : '', 
+        firstName : '', 
+        lastName : '', 
+        otherName : '', 
+        dob : '', 
+        email : '', 
+        phone : '', 
+        address : '', 
+        subrub : '', 
+        postalCode : '', 
+        state : '', 
+        contactOneName : '', 
+        contactOneEmail : '', 
+        contactOnePhone : '', 
+        contactOneRelation : '', 
+        contactTwoName : '', 
+        contactTwoEmail : '', 
+        contactTwoPhone : '', 
+        contactTwoRelation : '', 
+        proofId : '', 
+        poaAuthority : 'No', 
+        poaTitle: '', 
+        poaFirstName: '', 
+        poaLastName: '', 
+        poaOtherName: '', 
+        poaMobileNumber: '', 
+        poaHomeNumber: '', 
+        poaEmail: '', 
+        poaWorkNumber: ''
+    })
+
     return (
         <Context.Provider value={{
             sideBarOpen, setSideBarOpen, menu, setMenu, dishes, setDishes,
-            modalCampaignOpen, setModalCampaignOpen, registration, setRegistration
+            modalCampaignOpen, setModalCampaignOpen, registrationVariables, setRegistrationVariables, registration, setRegistration
         }}>
             {children}
         </Context.Provider>
