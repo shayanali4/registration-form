@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useContext, useEffect, useState } from "react"
 import MetaTags from 'react-meta-tags';
 
 import {
@@ -18,56 +18,27 @@ import {
   TabContent,
   Table,
   TabPane
-} from "reactstrap"
+} from "reactstrap";
 
 import classnames from "classnames"
-import { Link } from "react-router-dom"
+import { Link, useHistory } from "react-router-dom"
 
 //Import Breadcrumb
 import Breadcrumbs from "../common/Breadcrumb";
 import SweetAlert from "react-bootstrap-sweetalert"
 import axios from "axios";
-import { serverAddress } from "../../constants";
-import Paypal from "../PaymentMethods/Paypal"; 
+import {useDispatch} from 'react-redux';
+import { serverAddress } from "../../constants/serverConstants";
+import { Context } from "../../context/AppContext"
+import { sendEmailBackend } from "../../actions/emailActions";
 
 const FormWizard = () => {
+  const { registrationVariables, setRegistrationVariables, registration, setRegistration} = useContext(Context);
+  const dispatch = useDispatch();
   const [activeTab, setactiveTab] = useState(1)
   const [activeTabProgress, setactiveTabProgress] = useState(1)
   const [progressValue, setprogressValue] = useState(25)
   const [activeTabVartical, setoggleTabVertical] = useState(1)
-
-  const [membershipType, setMembershipType] = useState('individual');
-  const [dependantParents, setDependantParents] = useState(0);
-  const [dependantChildren, setDependantChildren] = useState(0);
-  const [title, setTitle] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [otherName, setOtherName] = useState('');
-  const [dob, setDOB] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [subrub, setSubrub] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [state, setState] = useState('');
-  const [contactOneName, setContactOneName] = useState('');
-  const [contactOneEmail, setContactOneEmail] = useState('');
-  const [contactOnePhone, setContactOnePhone] = useState('');
-  const [contactOneRelation, setContactOneRelation] = useState('');
-  const [contactTwoName, setContactTwoName] = useState('');
-  const [contactTwoEmail, setContactTwoEmail] = useState('');
-  const [contactTwoPhone, setContactTwoPhone] = useState('');
-  const [contactTwoRelation, setContactTwoRelation] = useState('');
-  const [proofId, setProofId] = useState('');
-  const [poaAuthority, setPoaAuthority] = useState('No')
-  const [poaTitle, setPoaTitle] = useState('');
-  const [poaFirstName, setPoaFirstName] = useState('');
-  const [poaLastName, setPoaLastName] = useState('');
-  const [poaOtherName, setPoaOtherName] = useState('');
-  const [poaMobileNumber, setPoaMobileNumber] = useState('');
-  const [poaHomeNumber, setPoaHomeNumber] = useState('');
-  const [poaEmail, setPoaEmail] = useState('');
-  const [poaWorkNumber, setPoaWorkNumber] = useState('');
 
   const joiningFeeObj = {
     individual : 50,
@@ -105,39 +76,69 @@ const FormWizard = () => {
     }
   }
 
-  // function toggleTabProgress(tab) {
-  //   if (activeTabProgress !== tab) {
-  //     if (tab >= 1 && tab <= 4) {
-  //       setactiveTabProgress(tab)
+  function handleChange(target,value) {
+    setRegistrationVariables(prevState => ({ ...prevState,[target] : value}))
+    // console.log("pointVariables",pointVariables);
+  }
 
-  //       if (tab === 1) {
-  //         setprogressValue(25)
-  //       }
-  //       if (tab === 2) {
-  //         setprogressValue(50)
-  //       }
-  //       if (tab === 3) {
-  //         setprogressValue(75)
-  //       }
-  //       if (tab === 4) {
-  //         setprogressValue(100)
-  //       }
-  //     }
-  //   }
-  // }
+  useEffect(() => {
+    handleChange( "joiningFee", joiningFeeObj.family + joiningFeeObj.dependantParents*registrationVariables.dependantParents + joiningFeeObj.dependantChildren*registrationVariables.dependantChildren);
+    handleChange( "annualFee", annualFeeObj.family + annualFeeObj.dependantParents*registrationVariables.dependantParents + annualFeeObj.dependantChildren*registrationVariables.dependantChildren);
+  }, [registrationVariables.dependantParents, registrationVariables.dependantChildren])
+
+
+  useEffect(() => {
+    handleChange(registrationVariables.joiningFee + registrationVariables.annualFee)
+  }, [registrationVariables.joiningFee, registrationVariables.annualFee])
+
 
   const submitHandler = async () => {
     try{
-      const {data} = await axios.post(`${serverAddress}/api/register`,{
-        membershipType, dependantParents, dependantChildren, 
-        title, firstName, lastName, otherName, dob, email, 
-        phone, address, subrub, postalCode, state, contactOneName, 
-        contactOneEmail, contactOnePhone, contactOneRelation, 
-        contactTwoName, contactTwoEmail, contactTwoPhone, 
-        contactTwoRelation, proofId, poaTitle, poaFirstName, 
-        poaLastName, poaOtherName, poaMobileNumber, poaHomeNumber, 
-        poaEmail, poaWorkNumber, poaAuthority, joiningFee, annualFee, total
-      })
+      const {data} = await axios.post(`${serverAddress}/api/register`, registrationVariables);
+      setRegistration(data);
+      // dispatch(saveRegistration(data));
+      const receiver = registrationVariables.email;
+      const subject = 'Confirmation Email';
+      const emailTemplate = `<h3>Hi ${registrationVariables.firstName}, you have registered successfully for the membership</h3> \n 
+      <p>Here are the details of your membership:</p> 
+      <br>
+      <table className="table align-middle mb-0 ">
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th scope="col">Type</th>
+                                          <th scope="col">Joining Fee</th>
+                                          <th scope="col">Annual Fee</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                          <tr>
+                                            <th scope="row">
+                                              ${registrationVariables.membershipType}
+                                            </th>
+                                            <td>
+                                              <h5 className="font-size-14 text-truncate">
+                                                ${registrationVariables.joiningFee}
+                                              </h5>
+                                            </td>
+                                            <td>
+                                              ${registrationVariables.annualFee}
+                                            </td>
+                                          </tr>
+
+                                        <tr>
+                                          <td colSpan="2">
+                                            <h6 className="m-0 text-end">
+                                              Total: 
+                                            </h6>
+                                          </td>
+                                          <td>${registrationVariables.total }</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>`;
+
+      dispatch(sendEmailBackend(receiver, subject, emailTemplate));
+      dispatch(sendEmailBackend('siddiqui@hotmail.co.uk', subject, 'Member Registered'));
+
       setsuccess_msg({
         type: 'Success',
         message: 'You have registered successfully'
@@ -148,6 +149,23 @@ const FormWizard = () => {
     }
   };
 
+  const history = useHistory();
+
+  const confirmHandler = ()=>{
+    setsuccess_msg(null)
+    history.push('/payment', { 
+      membershipType:registrationVariables.membershipType,
+      joiningFee: registrationVariables.joiningFee, 
+      annualFee: registrationVariables.annualFee, 
+      total: registrationVariables.total });
+  };
+
+  console.log("joining fee==>", joiningFee);
+  console.log("annual fee==>", annualFee);
+  console.log("total fee==>", total);
+
+  console.log("registration Variables==>", registrationVariables);
+
   return (
     <React.Fragment>
       <div className="page-content">
@@ -156,10 +174,11 @@ const FormWizard = () => {
         </MetaTags>
         <Container fluid={true}>
           {/* <Breadcrumbs title="Forms" breadcrumbItem="Form Wizard" /> */}
-
           <Row>
-            <Col lg="12">
-              <Card>
+            <Col lg="9" className="m-auto">
+
+              <Card className="p-3">
+                <CardTitle>Member Registration Form</CardTitle>
                 <CardBody>
                   <h4 className="card-title mb-4">Register Here</h4>
                   <div className="wizard clearfix">
@@ -189,6 +208,7 @@ const FormWizard = () => {
                             Personal Details
                           </NavLink>
                         </NavItem>
+                        
                         <NavItem className={classnames({ current: activeTab === 3 })}>
                           <NavLink
                             className={classnames({ active: activeTab === 3 })}
@@ -196,9 +216,9 @@ const FormWizard = () => {
                               setactiveTab(3)
                             }}
                           >
-                            <span className="number">03</span>{" "}
-                            Address
-                          </NavLink>
+                            <span className="number">03.</span>{" "}
+                          Emergency Details
+                        </NavLink>
                         </NavItem>
                         <NavItem className={classnames({ current: activeTab === 4 })}>
                           <NavLink
@@ -207,11 +227,12 @@ const FormWizard = () => {
                               setactiveTab(4)
                             }}
                           >
-                            <span className="number">04</span>{" "}
-                          Emergency Details
+                            <span className="number">04.</span>{" "}
+                          POA Details
                         </NavLink>
                         </NavItem>
-                        <NavItem className={classnames({ current: activeTab === 5 })}>
+
+                        {/* <NavItem className={classnames({ current: activeTab === 5 })}>
                           <NavLink
                             className={classnames({ active: activeTab === 5 })}
                             onClick={() => {
@@ -219,21 +240,9 @@ const FormWizard = () => {
                             }}
                           >
                             <span className="number">05</span>{" "}
-                          POA Details
-                        </NavLink>
-                        </NavItem>
-
-                        <NavItem className={classnames({ current: activeTab === 6 })}>
-                          <NavLink
-                            className={classnames({ active: activeTab === 6 })}
-                            onClick={() => {
-                              setactiveTab(6)
-                            }}
-                          >
-                            <span className="number">06</span>{" "}
                           Payment
                         </NavLink>
-                        </NavItem>
+                        </NavItem> */}
                       </ul>
                       
                       <div className="mt-4">
@@ -255,11 +264,11 @@ const FormWizard = () => {
                                           type="radio"
                                           name="exampleRadios"
                                           id="individual"
-                                          value="individual"
+                                          value="Individual"
                                           onChange={(e)=>{
-                                            setMembershipType(e.target.value);
-                                            setJoiningFee(joiningFeeObj.individual);
-                                            setAnnualFee(annualFeeObj.individual);
+                                            handleChange("membershipType",e.target.value);
+                                            handleChange("joiningFee", joiningFeeObj.individual);
+                                            handleChange("annualFee", annualFeeObj.individual);
                                           }}
                                           defaultChecked
                                         />
@@ -276,11 +285,11 @@ const FormWizard = () => {
                                           type="radio"
                                           name="exampleRadios"
                                           id="family"
-                                          value="family"
+                                          value="Family"
                                           onChange={(e)=>{
-                                            setMembershipType(e.target.value)
-                                            setJoiningFee(joiningFeeObj.family);
-                                            setAnnualFee(annualFeeObj.family);
+                                            handleChange("membershipType",e.target.value);
+                                            handleChange("joiningFee", joiningFeeObj.individual);
+                                            handleChange("annualFee", annualFeeObj.individual);
                                           }}
                                         />
                                         <label
@@ -295,20 +304,18 @@ const FormWizard = () => {
 
                                 </div>
                               </Col>
-                              {membershipType==='family' && 
+                              {registrationVariables.membershipType==='Family' && 
                               <Row>
                                 <Col lg="6">
                                   <div className="mb-3">
                                     <Label for="dependant-parents">Dependant Parents</Label>
                                     <Input
                                       type="number"
-                                      value={dependantParents}
+                                      value={registrationVariables.dependantParents}
                                       className="form-control"
                                       id="dependant-parents"
                                       onChange={(e)=>{
-                                        setDependantParents(e.target.value);
-                                        setJoiningFee(joiningFeeObj.family + joiningFeeObj.dependantParents*dependantParents);
-                                        setAnnualFee(annualFeeObj.family + annualFeeObj.dependantParents*dependantParents);
+                                        handleChange("dependantParents", e.target.value)
                                       }}
                                     />
                                   </div>
@@ -318,13 +325,11 @@ const FormWizard = () => {
                                     <Label for="dependant-children">Dependant Children</Label>
                                     <Input
                                       type="number"
-                                      value={dependantChildren}
+                                      value={registrationVariables.dependantChildren}
                                       className="form-control"
                                       id="dependant-children"
                                       onChange={(e)=>{
-                                        setDependantChildren(e.target.value)
-                                        setJoiningFee(joiningFeeObj.family + joiningFeeObj.dependantChildren*dependantChildren);
-                                        setAnnualFee(annualFeeObj.family + annualFeeObj.dependantChildren*dependantChildren); 
+                                        handleChange("dependantChildren", e.target.value)
                                       }}
                                       />
                                   </div>
@@ -342,7 +347,9 @@ const FormWizard = () => {
                                   <div className="mb-3">
                                     <label className="col-form-label">Title</label>
                                     <div className="">
-                                      <select className="form-control" onChange={(e)=>setTitle(e.target.value)}>
+                                      <select className="form-control" 
+                                        value={registrationVariables.title}
+                                        onChange={(e)=>handleChange("title",e.target.value)}>
                                         <option>Please select title</option>
                                         <option value="Mr">Mr</option>
                                         <option value="Mrs">Mrs</option>
@@ -359,7 +366,8 @@ const FormWizard = () => {
                                       type="text"
                                       className="form-control"
                                       id="firstname-input1"
-                                      onChange={(e)=>setFirstName(e.target.value)}
+                                      value = {registrationVariables.firstName}
+                                      onChange={(e)=>handleChange("firstName",e.target.value)}
                                     />
                                   </div>
                                 </Col>
@@ -370,7 +378,8 @@ const FormWizard = () => {
                                       type="text"
                                       className="form-control"
                                       id="lastname-input2"
-                                      onChange={(e)=>setLastName(e.target.value)}
+                                      value={registrationVariables.lastName}
+                                      onChange={(e)=>handleChange("lastName", e.target.value)}
                                       />
                                   </div>
                                 </Col>
@@ -382,7 +391,8 @@ const FormWizard = () => {
                                       type="text"
                                       className="form-control"
                                       id="lastname-input2"
-                                      onChange={(e)=>setOtherName(e.target.value)}
+                                      value={registrationVariables.otherName}
+                                      onChange={(e)=>handleChange("otherName", e.target.value)}
                                       />
                                   </div>
                                 </Col>
@@ -394,7 +404,8 @@ const FormWizard = () => {
                                       type="date"
                                       defaultValue="2019-08-19"
                                       id="dob"
-                                      onChange={(e)=>setDOB(e.target.value)}
+                                      value={registrationVariables.dob}
+                                      onChange={(e)=>handleChange("dob", e.target.value)}
                                       />
                                   </div>
                                 </Col>
@@ -405,7 +416,8 @@ const FormWizard = () => {
                                       type="email"
                                       className="form-control"
                                       id="email"
-                                      onChange={(e)=>setEmail(e.target.value)}
+                                      value={registrationVariables.email}
+                                      onChange={(e)=>handleChange("email", e.target.value)}
                                       />
                                   </div>
                                 </Col>
@@ -416,18 +428,14 @@ const FormWizard = () => {
                                       type="text"
                                       className="form-control"
                                       id="phoneno-input3"
-                                      onChange={(e)=>setPhone(e.target.value)}
+                                      value={registrationVariables.phone}
+                                      onChange={(e)=>handleChange("phone", e.target.value)}
                                       />
                                   </div>
                                 </Col>
                               </Row>
-                            </Form>
-                          </TabPane>
 
-                          <TabPane tabId={3}>
-                            <div>
-                              <Form>
-                                <Row>
+                              <Row>
                                   <Col lg="12">
                                     <div className="mb-3">
                                       <Label for="address-input1">Address</Label>
@@ -435,7 +443,8 @@ const FormWizard = () => {
                                         id="address-input1"
                                         className="form-control"
                                         rows="2"
-                                        onChange={(e)=>setAddress(e.target.value)}
+                                        value={registrationVariables.address}
+                                        onChange={(e)=>handleChange("address", e.target.value)}
                                         />
                                     </div>
                                   </Col>
@@ -447,7 +456,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="subrub-input6"
-                                        onChange={(e)=>setSubrub(e.target.value)}
+                                        value={registrationVariables.subrub}
+                                        onChange={(e)=>handleChange("subrub", e.target.value)}
                                         />
                                     </div>
                                   </Col>
@@ -461,7 +471,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="state-input7"
-                                        onChange={(e)=>setState(e.target.value)}
+                                        value={registrationVariables.state}
+                                        onChange={(e)=>handleChange("state", e.target.value)}
                                         />
                                     </div>
                                   </Col>
@@ -473,15 +484,23 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="postalcode-input8"
-                                        onChange={(e)=>setPostalCode(e.target.value)}
+                                      value={registrationVariables.postalCode}
+                                      onChange={(e)=>handleChange("postalCode", e.target.value)}
                                       />
                                     </div>
                                   </Col>
                                 </Row>
+                            </Form>
+                          </TabPane>
+{/* 
+                          <TabPane tabId={3}>
+                            <div>
+                              <Form>
+                                
                               </Form>
                             </div>
-                          </TabPane>
-                          <TabPane tabId={4}>
+                          </TabPane> */}
+                          <TabPane tabId={3}>
                             <div>
                               <Form>
                                 <Row>
@@ -492,7 +511,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact1-name-input11"
-                                        onChange={(e)=>setContactOneName(e.target.value)}
+                                        value={registrationVariables.contactOneName}
+                                        onChange={(e)=>handleChange("contactOneName", e.target.value)}
                                       />
                                     </div>
                                   </Col>
@@ -519,8 +539,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact1-phone-input12"
-                                        onChange={(e)=>setContactOnePhone(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactOnePhone}
+                                        onChange={(e)=>handleChange("contactOnePhone", e.target.value)}                                      />
                                     </div>
                                   </Col>
 
@@ -531,8 +551,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact1-email-input"
-                                        onChange={(e)=>setContactOneEmail(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactOneEmail}
+                                        onChange={(e)=>handleChange("contactOneEmail", e.target.value)}                                      />
                                     </div>
                                   </Col>
                                
@@ -543,7 +563,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact1-relation-input13"
-                                        onChange={(e)=>setContactOneRelation(e.target.value)}
+                                        value={registrationVariables.contactOneRelation}
+                                        onChange={(e)=>handleChange("contactOneRelation", e.target.value)}
                                       />
                                     </div>
                                   </Col>
@@ -554,8 +575,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact2-input11"
-                                        onChange={(e)=>setContactTwoName(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactTwoName}
+                                        onChange={(e)=>handleChange("contactTwoName", e.target.value)}                                      />
                                     </div>
                                   </Col>
 
@@ -583,8 +604,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact2-phone-input12"
-                                        onChange={(e)=>setContactTwoPhone(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactTwoPhone}
+                                        onChange={(e)=>handleChange("contactTwoPhone", e.target.value)}                                         />
                                     </div>
                                   </Col>
 
@@ -595,8 +616,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact2-email-input"
-                                        onChange={(e)=>setContactTwoEmail(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactTwoEmail}
+                                        onChange={(e)=>handleChange("contactTwoEmail", e.target.value)}                                         />
                                     </div>
                                   </Col>
                                
@@ -607,15 +628,15 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="contact2-relation-input13"
-                                        onChange={(e)=>setContactTwoRelation(e.target.value)}
-                                      />
+                                        value={registrationVariables.contactTwoRelation}
+                                        onChange={(e)=>handleChange("contactTwoRelation", e.target.value)}                                         />
                                     </div>
                                   </Col>
                                 </Row>
                               </Form>
                             </div>
                           </TabPane>
-                          <TabPane tabId={5}>
+                          <TabPane tabId={4}>
                           <div>
                               <Form>
                                 <Row>
@@ -631,7 +652,7 @@ const FormWizard = () => {
                                           name="proofId"
                                           id="proofid-licence"
                                           value="Licence"
-                                          onChange={(e)=>setProofId(e.target.value)}
+                                          onChange={(e)=>handleChange("proofId", e.target.value)}
                                           defaultChecked
                                         />
                                         <label
@@ -645,7 +666,7 @@ const FormWizard = () => {
                                           type="radio"
                                           name="proofId"
                                           id="proofId-passport"
-                                          onChange={(e)=>setProofId(e.target.value)}
+                                          onChange={(e)=>handleChange("proofId", e.target.value)}
                                           value="Passport"
                                           defaultChecked
                                         />
@@ -670,7 +691,7 @@ const FormWizard = () => {
                                           name="PoaAuthority"
                                           id="yes-poa"
                                           value="Yes"
-                                          onChange={(e)=>setPoaAuthority(e.target.value)}
+                                          onChange={(e)=>handleChange("poaAuthority", e.target.value)}
                                         />
                                         <label
                                           className="form-check-label"
@@ -684,7 +705,7 @@ const FormWizard = () => {
                                           name="PoaAuthority"
                                           id="no-poa"
                                           value="No"
-                                          onChange={(e)=>setPoaAuthority(e.target.value)}
+                                          onChange={(e)=>handleChange("poaAuthority", e.target.value)}
                                           defaultChecked
                                         />
                                         <label
@@ -696,13 +717,16 @@ const FormWizard = () => {
                                   </div>
                                 </div>
                                   </Col>
-                                  {poaAuthority==='Yes' && <>
+                                  {registrationVariables.poaAuthority==='Yes' && <>
                                   
                                   <Col lg="6">
                                     <div className="mb-3">
                                       <Label className="">Title</Label>
                                       <div className="">
-                                        <select className="form-control" onChange={(e)=>setTitle(e.target.value)}>
+                                        <select className="form-control" 
+                                          onChange={(e)=>handleChange("poaTitle", e.target.value)}
+                                          value ={registrationVariables.poaTitle}
+                                        >
                                           <option>Please select title</option>
                                           <option value="Mr">Mr</option>
                                           <option value="Mrs">Mrs</option>
@@ -720,7 +744,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-firstname-input7"
-                                        onChange={(e)=>setPoaFirstName(e.target.value)}
+                                        value={registrationVariables.poaFirstName}
+                                        onChange={(e)=>handleChange("poaFirstName", e.target.value)}
                                         />
                                     </div>
                                   </Col>
@@ -732,8 +757,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-lastname-input7"
-                                        onChange={(e)=>setPoaLastName(e.target.value)}
-                                        />
+                                        value={registrationVariables.poaLastName}
+                                        onChange={(e)=>handleChange("poaLastName", e.target.value)}                                        />
                                     </div>
                                   </Col>
                                   <Col lg="6">
@@ -743,8 +768,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-othername-input7"
-                                        onChange={(e)=>setPoaOtherName(e.target.value)}
-                                        />
+                                        value={registrationVariables.poaOtherName}
+                                        onChange={(e)=>handleChange("poaOtherName", e.target.value)}                                        />
                                     </div>
                                   </Col>
                                   <Col lg="6">
@@ -754,8 +779,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="bpoa-mobile-input7"
-                                        onChange={(e)=>setPoaMobileNumber(e.target.value)}
-                                        />
+                                        value={registrationVariables.poaMobileNumber}
+                                        onChange={(e)=>handleChange("poaMobileNumber", e.target.value)}                                        />
                                     </div>
                                   </Col>
                                   <Col lg="6">
@@ -765,8 +790,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-work-input7"
-                                        onChange={(e)=>setPoaWorkNumber(e.target.value)}
-                                        />
+                                        value={registrationVariables.poaWorkNumber}
+                                        onChange={(e)=>handleChange("poaWorkNumber", e.target.value)}                                        />
                                     </div>
                                   </Col>
                                   <Col lg="6">
@@ -776,8 +801,8 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-home-input7"
-                                        onChange={(e)=>setPoaHomeNumber(e.target.value)}
-                                        />
+                                        value={registrationVariables.poaHomeNumber}
+                                        onChange={(e)=>handleChange("poaHomeNumber", e.target.value)}                                        />
                                     </div>
                                   </Col>
                                   <Col lg="6">
@@ -787,65 +812,14 @@ const FormWizard = () => {
                                         type="text"
                                         className="form-control"
                                         id="poa-email-input7"
+                                        value={registrationVariables.poaEmail}
+                                        onChange={(e)=>handleChange("poaEmail", e.target.value)}
                                       />
                                     </div>
                                   </Col></>}
                                 </Row>
                               </Form>
                             </div>
-                          </TabPane>
-
-                          <TabPane tabId={6}>
-                            <Row>
-                              <Col lg="8">
-                                <Card className="shadow-none border ">
-                                <CardBody className="p-2">
-                                  <CardTitle className="mb-4">
-                                    Membership Details
-                                  </CardTitle>
-
-                                  <div className="table-responsive">
-                                    <Table className="table align-middle mb-0 ">
-                                      <thead className="table-light">
-                                        <tr>
-                                          <th scope="col">Type</th>
-                                          <th scope="col">Joining Fee</th>
-                                          <th scope="col">Annual Fee</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                          <tr>
-                                            <th scope="row">
-                                              {membershipType.toUpperCase()}
-                                            </th>
-                                            <td>
-                                              <h5 className="font-size-14 text-truncate">
-                                                ${joiningFee}
-                                              </h5>
-                                            </td>
-                                            <td>
-                                              ${annualFee}
-                                            </td>
-                                          </tr>
-
-                                        <tr>
-                                          <td colSpan="2">
-                                            <h6 className="m-0 text-end">
-                                              Total: 
-                                            </h6>
-                                          </td>
-                                          <td>${joiningFee + annualFee }</td>
-                                        </tr>
-                                      </tbody>
-                                    </Table>
-                                  </div>
-                                </CardBody>
-                              </Card>
-                            </Col>
-                            <Col lg={4}>
-                              <Paypal />
-                            </Col>
-                            </Row>
                           </TabPane>
                         </TabContent>
                       </div>
@@ -868,17 +842,17 @@ const FormWizard = () => {
                           </Link>
                           </li>}
                           <li
-                            className={activeTab === 5 ? "next disabled" : "next"}
+                            className={activeTab === 4 ? "next disabled" : "next"}
                           >
                             <Link
                               to="#"
                               className="btn btn-primary"
                               onClick={() => {
                                 toggleTab(activeTab + 1);
-                                activeTab===6 &&  submitHandler();
+                                activeTab===4 &&  submitHandler();
                               }}
                             >
-                              {activeTab===6? 'Finish':'Next'}
+                              {activeTab===4? 'Finish':'Next'}
                           </Link>
                           </li>
                         </ul>
@@ -896,7 +870,7 @@ const FormWizard = () => {
             confirmBtnBsStyle="success"
             cancelBtnBsStyle="danger"
             onConfirm={() => {
-              setsuccess_msg(null)
+              confirmHandler();
             }}
             onCancel={() => {
               setsuccess_msg(null)

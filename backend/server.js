@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import RegisterRouter from './routers/RegisterRouter.js';
+import emailRouter from './routers/emailRouter.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ mongoose.connect('mongodb+srv://admin:admin123@cluster0.gwgp8.mongodb.net/Regist
     console.log("mongo error",err)
 });
 
+app.use('/api/email', emailRouter);
 app.use('/api/register', RegisterRouter);
 
 app.get('/', (req, res) => {
@@ -33,7 +35,7 @@ app.use((err, req, res, next)=> {
     res.status(500).send({message:err.message});
 });
 
-const port = process.env.PORT || 5080;
+const port = process.env.PORT || 5080; 
 
 app.listen(port, () => {
     console.log(`Serve at http://localhost:${port}`);
