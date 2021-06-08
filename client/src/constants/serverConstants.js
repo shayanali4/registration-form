@@ -1,0 +1,1 @@
+export const serverAddress = 'https://membership-registration-form.herokuapp.com';

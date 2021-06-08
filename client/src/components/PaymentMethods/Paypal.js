@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 
-export default function Paypal() {
+export default function Paypal(props) {
   const paypal = useRef();
 
   useEffect(() => {
@@ -13,8 +13,8 @@ export default function Paypal() {
               {
                 description: "Cool looking table",
                 amount: {
-                  currency_code: "CAD",
-                  value: 650.0,
+                  currency_code: "USD",
+                  value: 0.1,
                 },
               },
             ],
@@ -22,18 +22,18 @@ export default function Paypal() {
         },
         onApprove: async (data, actions) => {
           const order = await actions.order.capture();
-          console.log(order);
+          console.log("order details ==> ",order);
         },
         onError: (err) => {
-          console.log(err);
+          console.log("error ==> ",err);
         },
       })
       .render(paypal.current);
   }, []);
 
   return (
-    <div>
-      <div ref={paypal}></div>
+    <div className="m-auto">
+      <div className="m-auto" ref={paypal}></div>
     </div>
   );
 }

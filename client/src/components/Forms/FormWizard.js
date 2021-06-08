@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useContext, useEffect, useState } from "react"
 import MetaTags from 'react-meta-tags';
 
 import {
@@ -18,19 +18,23 @@ import {
   TabContent,
   Table,
   TabPane
-} from "reactstrap"
+} from "reactstrap";
 
 import classnames from "classnames"
-import { Link } from "react-router-dom"
+import { Link, useHistory } from "react-router-dom"
 
 //Import Breadcrumb
 import Breadcrumbs from "../common/Breadcrumb";
 import SweetAlert from "react-bootstrap-sweetalert"
 import axios from "axios";
-import { serverAddress } from "../../constants";
-import Paypal from "../PaymentMethods/Paypal"; 
+import {useDispatch} from 'react-redux';
+import { serverAddress } from "../../constants/serverConstants";
+import { Context } from "../../context/AppContext"
+import { sendEmailBackend } from "../../actions/emailActions";
 
 const FormWizard = () => {
+  const {registration, setRegistration} = useContext(Context);
+  const dispatch = useDispatch();
   const [activeTab, setactiveTab] = useState(1)
   const [activeTabProgress, setactiveTabProgress] = useState(1)
   const [progressValue, setprogressValue] = useState(25)
@@ -126,6 +130,17 @@ const FormWizard = () => {
   //   }
   // }
 
+  useEffect(() => {
+    setJoiningFee(joiningFeeObj.family + joiningFeeObj.dependantParents*dependantParents + joiningFeeObj.dependantChildren*dependantChildren);
+    setAnnualFee(annualFeeObj.family + annualFeeObj.dependantParents*dependantParents + annualFeeObj.dependantChildren*dependantChildren);
+  }, [dependantParents, dependantChildren])
+
+
+  useEffect(() => {
+    setTotal(joiningFee + annualFee)
+  }, [joiningFee, annualFee])
+
+
   const submitHandler = async () => {
     try{
       const {data} = await axios.post(`${serverAddress}/api/register`,{
@@ -138,6 +153,49 @@ const FormWizard = () => {
         poaLastName, poaOtherName, poaMobileNumber, poaHomeNumber, 
         poaEmail, poaWorkNumber, poaAuthority, joiningFee, annualFee, total
       })
+      setRegistration(data);
+      // dispatch(saveRegistration(data));
+      const receiver = email;
+      const subject = 'Confirmation Email';
+      const emailTemplate = `Hi ${firstName}, you have registered successfully for the membership \n 
+      Here are the details of your membership 
+      <br>
+      <table className="table align-middle mb-0 ">
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th scope="col">Type</th>
+                                          <th scope="col">Joining Fee</th>
+                                          <th scope="col">Annual Fee</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                          <tr>
+                                            <th scope="row">
+                                              {membershipType}
+                                            </th>
+                                            <td>
+                                              <h5 className="font-size-14 text-truncate">
+                                                ${joiningFee}
+                                              </h5>
+                                            </td>
+                                            <td>
+                                              ${annualFee}
+                                            </td>
+                                          </tr>
+
+                                        <tr>
+                                          <td colSpan="2">
+                                            <h6 className="m-0 text-end">
+                                              Total: 
+                                            </h6>
+                                          </td>
+                                          <td>${total }</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>`;
+
+      dispatch(sendEmailBackend(receiver, subject, emailTemplate));
+
       setsuccess_msg({
         type: 'Success',
         message: 'You have registered successfully'
@@ -148,6 +206,17 @@ const FormWizard = () => {
     }
   };
 
+  const history = useHistory();
+
+  const confirmHandler = ()=>{
+    setsuccess_msg(null)
+    history.push('/payment', { membershipType, joiningFee, annualFee, total });
+  };
+
+  console.log("joining fee==>", joiningFee);
+  console.log("annual fee==>", annualFee);
+  console.log("total fee==>", total);
+
   return (
     <React.Fragment>
       <div className="page-content">
@@ -156,10 +225,11 @@ const FormWizard = () => {
         </MetaTags>
         <Container fluid={true}>
           {/* <Breadcrumbs title="Forms" breadcrumbItem="Form Wizard" /> */}
-
           <Row>
-            <Col lg="12">
-              <Card>
+            <Col lg="8" className="m-auto">
+
+              <Card className="p-3">
+                <CardTitle>Member Registration Form</CardTitle>
                 <CardBody>
                   <h4 className="card-title mb-4">Register Here</h4>
                   <div className="wizard clearfix">
@@ -189,6 +259,7 @@ const FormWizard = () => {
                             Personal Details
                           </NavLink>
                         </NavItem>
+                        
                         <NavItem className={classnames({ current: activeTab === 3 })}>
                           <NavLink
                             className={classnames({ active: activeTab === 3 })}
@@ -196,9 +267,9 @@ const FormWizard = () => {
                               setactiveTab(3)
                             }}
                           >
-                            <span className="number">03</span>{" "}
-                            Address
-                          </NavLink>
+                            <span className="number">03.</span>{" "}
+                          Emergency Details
+                        </NavLink>
                         </NavItem>
                         <NavItem className={classnames({ current: activeTab === 4 })}>
                           <NavLink
@@ -207,11 +278,12 @@ const FormWizard = () => {
                               setactiveTab(4)
                             }}
                           >
-                            <span className="number">04</span>{" "}
-                          Emergency Details
+                            <span className="number">04.</span>{" "}
+                          POA Details
                         </NavLink>
                         </NavItem>
-                        <NavItem className={classnames({ current: activeTab === 5 })}>
+
+                        {/* <NavItem className={classnames({ current: activeTab === 5 })}>
                           <NavLink
                             className={classnames({ active: activeTab === 5 })}
                             onClick={() => {
@@ -219,21 +291,9 @@ const FormWizard = () => {
                             }}
                           >
                             <span className="number">05</span>{" "}
-                          POA Details
-                        </NavLink>
-                        </NavItem>
-
-                        <NavItem className={classnames({ current: activeTab === 6 })}>
-                          <NavLink
-                            className={classnames({ active: activeTab === 6 })}
-                            onClick={() => {
-                              setactiveTab(6)
-                            }}
-                          >
-                            <span className="number">06</span>{" "}
                           Payment
                         </NavLink>
-                        </NavItem>
+                        </NavItem> */}
                       </ul>
                       
                       <div className="mt-4">
@@ -307,8 +367,7 @@ const FormWizard = () => {
                                       id="dependant-parents"
                                       onChange={(e)=>{
                                         setDependantParents(e.target.value);
-                                        setJoiningFee(joiningFeeObj.family + joiningFeeObj.dependantParents*dependantParents);
-                                        setAnnualFee(annualFeeObj.family + annualFeeObj.dependantParents*dependantParents);
+
                                       }}
                                     />
                                   </div>
@@ -323,8 +382,7 @@ const FormWizard = () => {
                                       id="dependant-children"
                                       onChange={(e)=>{
                                         setDependantChildren(e.target.value)
-                                        setJoiningFee(joiningFeeObj.family + joiningFeeObj.dependantChildren*dependantChildren);
-                                        setAnnualFee(annualFeeObj.family + annualFeeObj.dependantChildren*dependantChildren); 
+
                                       }}
                                       />
                                   </div>
@@ -421,13 +479,8 @@ const FormWizard = () => {
                                   </div>
                                 </Col>
                               </Row>
-                            </Form>
-                          </TabPane>
 
-                          <TabPane tabId={3}>
-                            <div>
-                              <Form>
-                                <Row>
+                              <Row>
                                   <Col lg="12">
                                     <div className="mb-3">
                                       <Label for="address-input1">Address</Label>
@@ -478,10 +531,17 @@ const FormWizard = () => {
                                     </div>
                                   </Col>
                                 </Row>
+                            </Form>
+                          </TabPane>
+{/* 
+                          <TabPane tabId={3}>
+                            <div>
+                              <Form>
+                                
                               </Form>
                             </div>
-                          </TabPane>
-                          <TabPane tabId={4}>
+                          </TabPane> */}
+                          <TabPane tabId={3}>
                             <div>
                               <Form>
                                 <Row>
@@ -615,7 +675,7 @@ const FormWizard = () => {
                               </Form>
                             </div>
                           </TabPane>
-                          <TabPane tabId={5}>
+                          <TabPane tabId={4}>
                           <div>
                               <Form>
                                 <Row>
@@ -843,7 +903,7 @@ const FormWizard = () => {
                               </Card>
                             </Col>
                             <Col lg={4}>
-                              <Paypal />
+                              {/* <Paypal /> */}
                             </Col>
                             </Row>
                           </TabPane>
@@ -868,17 +928,17 @@ const FormWizard = () => {
                           </Link>
                           </li>}
                           <li
-                            className={activeTab === 5 ? "next disabled" : "next"}
+                            className={activeTab === 4 ? "next disabled" : "next"}
                           >
                             <Link
                               to="#"
                               className="btn btn-primary"
                               onClick={() => {
                                 toggleTab(activeTab + 1);
-                                activeTab===6 &&  submitHandler();
+                                activeTab===4 &&  submitHandler();
                               }}
                             >
-                              {activeTab===6? 'Finish':'Next'}
+                              {activeTab===4? 'Finish':'Next'}
                           </Link>
                           </li>
                         </ul>
@@ -896,7 +956,7 @@ const FormWizard = () => {
             confirmBtnBsStyle="success"
             cancelBtnBsStyle="danger"
             onConfirm={() => {
-              setsuccess_msg(null)
+              confirmHandler();
             }}
             onCancel={() => {
               setsuccess_msg(null)
